@@ -18,7 +18,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 			CHAR16							*NodeFileName;
 			CHAR16							*NodeDirName;	
 			//打开自己的映像DP信息
-			Status=gBS->HandleProtocol(FileHandle,&gEfiLoadedImageDevicePathProtocolGuid,&ThisFileDP);
+			Status=gBS->HandleProtocol(FileHandle,&gEfiLoadedImageDevicePathProtocolGuid,(VOID**)&ThisFileDP);
 			if(EFI_ERROR (Status)){
 				Print(L"LoadedImageDevicePathProtocol not found.Error=[%r]\n",Status);
 				return NULL;

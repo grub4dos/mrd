@@ -69,7 +69,7 @@ LoadBootFileInVirtualDisk(
 			BootFileDevicePath2,			//文件的devicepath
 			NULL,
 			0,
-			BootMyFileHandle				//传入HANDLE地址	
+			(VOID**)BootMyFileHandle				//传入HANDLE地址	
 			);				
 		if(EFI_ERROR (Status)) {
 			Print(L"Loadimage failed! Error=[%r]\n",Status);

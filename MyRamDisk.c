@@ -7,7 +7,7 @@
 DIDO_DISK_PRIVATE_DATA *pridata;
 
 ///程序入口，作为启动器，貌似不能用main作为入口
-EFI_STATUS UefiMain(
+EFI_STATUS EFIAPI UefiMain(
         IN EFI_HANDLE           ImageHandle,
         IN EFI_SYSTEM_TABLE     *SystemTable
 		)
@@ -46,13 +46,15 @@ EFI_STATUS UefiMain(
 					}
 				}
 			}		
-
+		///内存方式安装虚拟盘	
+//		Status=MyFileDiskInstall(IsoFileHandle,TRUE);
 		///非内存方式安装虚拟盘	
 		Status=MyFileDiskInstall(IsoFileHandle,FALSE);
-		if(EFI_ERROR (Status)) {
+/*		if(EFI_ERROR (Status)) {
 			Print(L"Install virtual disk failed!\n");
 			goto errordroptoshell;
 			}
+*/			
 		///打开虚拟盘上的启动文件	
 		Status=LoadBootFileInVirtualDisk(pridata[0].VirDiskDevicePath,&BootFileHandleInRamDisk);
 		if(EFI_ERROR (Status)) {
@@ -80,9 +82,10 @@ errordroptoshell:
 			CurrDirDP,			//文件的devicepath
 			NULL,
 			0,
-			&BootFileHandleInRamDisk				//传入HANDLE地址	
+			(VOID**)&BootFileHandleInRamDisk				//传入HANDLE地址	
 			);				
-	
+		///等待30秒
+		DidoWaitSec(30);	
 		Status=gBS->StartImage(	BootFileHandleInRamDisk,0,	NULL);
 		if(EFI_ERROR (Status)) {
 			Print(L"Start shellx64.efi failed!\n");
@@ -90,4 +93,5 @@ errordroptoshell:
 			}			
 /**/	return EFI_SUCCESS;
 	}
+
 

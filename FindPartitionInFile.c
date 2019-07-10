@@ -13,8 +13,8 @@ EFI_STATUS
 			CDROM_VOLUME_DESCRIPTOR     *VolDescriptor=NULL;
 			ELTORITO_CATALOG            *TempCatalog=NULL;
 			UINTN						DescriptorSize=RAM_DISK_BLOCK_SIZE;	
-			
-
+			UINTN						DbrImageSize=2;
+			UINT16						DbrImageSizeBuffer;
 			VolDescriptor = AllocatePool (DescriptorSize);
 			if (VolDescriptor == NULL) {
 				return EFI_NOT_FOUND;
@@ -39,7 +39,7 @@ EFI_STATUS
 					TempCatalog[i+1].Boot.LoadSegment==0x7c00){
 					*NoBootStartAddr	=TempCatalog[i+1].Boot.Lba*RAM_DISK_BLOCK_SIZE;
 					*NoBootSize	 	=TempCatalog[i+1].Boot.SectorCount*RAM_DISK_BLOCK_SIZE;
-					return EFI_SUCCESS;
+					
 					}
 				
 				
@@ -48,12 +48,20 @@ EFI_STATUS
 					TempCatalog[i+1].Boot.Indicator==ELTORITO_ID_SECTION_BOOTABLE ){
 					*BootStartAddr=TempCatalog[i+1].Boot.Lba*RAM_DISK_BLOCK_SIZE;
 					*BootSize	 =TempCatalog[i+1].Boot.SectorCount*RAM_DISK_BLOCK_SIZE;
+					//有些光盘的映像大小设定不正确，太小就读取软盘映像的dbr
+					FileHandleSetPosition(FileDiskFileHandle,*BootStartAddr+0x13); 	
+					FileHandleRead(FileDiskFileHandle,&DbrImageSize,&DbrImageSizeBuffer);
+					if( *BootSize<DbrImageSizeBuffer*RAM_DISK_BLOCK_SIZE){
+						*BootSize=DbrImageSizeBuffer*RAM_DISK_BLOCK_SIZE;
+						}
+					if(*BootSize<0x1680*RAM_DISK_BLOCK_SIZE){
+						*BootSize=0x1680*RAM_DISK_BLOCK_SIZE;
+						}
 					return EFI_SUCCESS;
 					}
 				
 				}				
-			
-				
+
 				
 				
 				

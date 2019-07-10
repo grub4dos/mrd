@@ -14,7 +14,7 @@ EFI_FILE_HANDLE
 			//分解DP
 			Status=gBS->LocateDevicePath(&gEfiSimpleFileSystemProtocolGuid,&CurrDevicePath,&CurrDeviceHandle);
 			//通过设备句柄打开找到的文件系统协议
-			Status=gBS->HandleProtocol(CurrDeviceHandle,&gEfiSimpleFileSystemProtocolGuid,&DidoTempProtocol);
+			Status=gBS->HandleProtocol(CurrDeviceHandle,&gEfiSimpleFileSystemProtocolGuid,(VOID**)&DidoTempProtocol);
 			if(EFI_ERROR (Status)){
 				Print(L"SimpleFileSystemProtocol not found.Error=[%r]\n",Status);
 				return NULL;

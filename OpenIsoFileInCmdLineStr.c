@@ -17,7 +17,7 @@ EFI_FILE_HANDLE
 		EFI_FILE_PROTOCOL	 				*DidoVolumeHandle=NULL,*DidoFileHandle=NULL;
 		EFI_SIMPLE_FILE_SYSTEM_PROTOCOL 	*DidoTempProtocol;		
 		//打开自己的映像DP信息
-		Status=gBS->HandleProtocol(gImageHandle,&gEfiLoadedImageProtocolGuid,&ThisFileLIP);
+		Status=gBS->HandleProtocol(gImageHandle,&gEfiLoadedImageProtocolGuid,(VOID**)&ThisFileLIP);
 		if(EFI_ERROR (Status)){
 			Print(L"LoadedImageProtocol not found.Error=[%r]\n",Status);
 			return NULL;
@@ -74,7 +74,7 @@ EFI_FILE_HANDLE
 			}
 		//处理绝对路径	
 
-		Status=gBS->HandleProtocol(ThisFileLIP->DeviceHandle,&gEfiSimpleFileSystemProtocolGuid,&DidoTempProtocol);
+		Status=gBS->HandleProtocol(ThisFileLIP->DeviceHandle,&gEfiSimpleFileSystemProtocolGuid,(VOID**)&DidoTempProtocol);
 		if(EFI_ERROR (Status)){
 			Print(L"SimpleFileSystemProtocol not found.Error=[%r]\n",Status);
 			return NULL;
