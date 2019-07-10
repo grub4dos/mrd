@@ -6,19 +6,21 @@ EFI_FILE_HANDLE
 	)
 	{
 		EFI_STATUS							Status;
-		CHAR16 								*DidoFoundStr=NULL;
 		EFI_FILE_INFO 						*DidoFileInfoBuffer=NULL;
 		BOOLEAN 							FoundIsoFile=FALSE;
 		BOOLEAN 							DirHaveNoFile=FALSE;
 		EFI_FILE_PROTOCOL					*DidoFileHandle=NULL;
-
+		UINTN 								StringLenth;
 
 		Print(L"Searching iso file in current dir\n");
 		//找到根目录第一个iso文件
 		Status=FileHandleFindFirstFile(DirToSearch,&DidoFileInfoBuffer);
-		//简单的判断，有.iso字样则认为是iso文件	
-		DidoFoundStr=StrStr(DidoFileInfoBuffer->FileName,L".iso");
-		if(NULL!=DidoFoundStr){
+		StringLenth=StrLen(DidoFileInfoBuffer->FileName);
+		if(	StringLenth>=5&&
+			(DidoFileInfoBuffer->FileName[StringLenth-4]==L'.'||DidoFileInfoBuffer->FileName[StringLenth-4]==L'.')&&
+			(DidoFileInfoBuffer->FileName[StringLenth-3]==L'i'||DidoFileInfoBuffer->FileName[StringLenth-3]==L'I')&&
+			(DidoFileInfoBuffer->FileName[StringLenth-2]==L's'||DidoFileInfoBuffer->FileName[StringLenth-2]==L'S')&&
+			(DidoFileInfoBuffer->FileName[StringLenth-1]==L'o'||DidoFileInfoBuffer->FileName[StringLenth-1]==L'O')){
 			FoundIsoFile=TRUE;
 			}	
 		while(FALSE==FoundIsoFile){
@@ -26,12 +28,15 @@ EFI_FILE_HANDLE
 			if(DirHaveNoFile){
 				break;
 				}
-			//简单的判断，有.iso字样则认为是iso文件	
-			DidoFoundStr=StrStr(DidoFileInfoBuffer->FileName,L".iso");
-			if(NULL!=DidoFoundStr){
+			StringLenth=StrLen(DidoFileInfoBuffer->FileName);
+			if(	StringLenth>=5&&
+				(DidoFileInfoBuffer->FileName[StringLenth-4]==L'.'||DidoFileInfoBuffer->FileName[StringLenth-4]==L'.')&&
+				(DidoFileInfoBuffer->FileName[StringLenth-3]==L'i'||DidoFileInfoBuffer->FileName[StringLenth-3]==L'I')&&
+				(DidoFileInfoBuffer->FileName[StringLenth-2]==L's'||DidoFileInfoBuffer->FileName[StringLenth-2]==L'S')&&
+				(DidoFileInfoBuffer->FileName[StringLenth-1]==L'o'||DidoFileInfoBuffer->FileName[StringLenth-1]==L'O')){
 				FoundIsoFile=TRUE;
 				break;
-				}	
+				}		
 			}
 		if(TRUE==FoundIsoFile){
 			Print(L"Found iso file:%s\n",DidoFileInfoBuffer->FileName);	
@@ -41,14 +46,7 @@ EFI_FILE_HANDLE
 				}		
 			}
 		//如果找到iso文件则释放临时内存
-			
 		if(NULL!=DidoFileInfoBuffer)gBS->FreePool(DidoFileInfoBuffer);
-		//如果没找到，则下一个文件系统
-			
-			
-		if(FALSE==FoundIsoFile){
-			Print(L"Can not find iso file.Error=[%r]\n",Status);
-			}			
-		Print(L"Boot iso file failed.Error=[%r]\n",Status);
+		Print(L"Can not find iso file.Error=[%r]\n",Status);
 		return NULL;		
 	}

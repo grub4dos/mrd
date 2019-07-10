@@ -24,6 +24,8 @@
 // Block size for RAM disk
 //
 #define RAM_DISK_BLOCK_SIZE 2048        //被我修改以适应虚拟光驱 原来是512
+#define FLOPPY_DISK_BLOCK_SIZE 512
+#define BLOCK_OF_1_44MB	0xB40
 #define CD_BOOT_SECTOR	17
 #define IS_EFI_SYSTEM_PARTITION 239
 #define DIDO_DISK_PRIVATE_DATA_BLOCKIO_TO_PARENT(a) ((DIDO_DISK_PRIVATE_DATA *)((CHAR8 *)(a)-(CHAR8 *) &(((DIDO_DISK_PRIVATE_DATA *) 0)->BlockIo)))
@@ -36,7 +38,12 @@ static const EFI_GUID MyGuid =
 
 
 
-typedef EFI_STATUS (*FUN)(   IN EFI_HANDLE ,  IN EFI_SYSTEM_TABLE*);
+typedef struct {
+	///命令行参数的结构
+	UINTN								WaitTimeSec;
+	BOOLEAN								LoadIsoInMemory;
+	BOOLEAN								DebugDropToShell;
+	}DIDO_CMDLINE_STATUS;
 
 
 
@@ -164,10 +171,12 @@ EFI_FILE_HANDLE
 	OpenFileByDevicePath(
 		IN 		EFI_DEVICE_PATH_PROTOCOL 			*CurrDevicePath			//当前设备的设备路径
 		);
-///载入bootx64.efi准备启动
+
+///载入句柄指定的设备(由光盘上的bootimage虚拟)中的/efi/boot/bootx64.efi，并返回启动文件的句柄
+///如果BootImageDiskHandle为NULL，则会搜索虚拟盘
 EFI_STATUS
 LoadBootFileInVirtualDisk(
-	IN		EFI_DEVICE_PATH_PROTOCOL			*RegedRamDiskDevicePath,
+	IN		EFI_HANDLE							*BootImageDiskHandle, 
 	OUT		EFI_FILE_HANDLE						*BootMyFileHandle
 	);
 ///等待指定时间秒
@@ -199,13 +208,16 @@ EFI_STATUS
 		OUT		UINT64					*BootSize
 		);
 
-///打开命令行指定的iso文件，返回句柄	
+///打开命令行指定的iso文件，返回句柄,以及延时和是否载入内存的参数	
 EFI_FILE_HANDLE
 	OpenIsoFileInCmdLineStr(
-//		IN	CHAR16*			CmdLine,
-		EFI_FILE_HANDLE			CurrDirHandle
+		DIDO_CMDLINE_STATUS					*CmdLineStatus,
+		EFI_FILE_HANDLE						CurrDirHandle
 	);
 
+///检查启动分区是否成功安装
 
+EFI_HANDLE
+	FindBootPartitionHandle();
 
 #endif

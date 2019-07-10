@@ -36,6 +36,7 @@
 	ProcCfgFile.c
 	FindPartitionInFile.c
 	OpenIsoFileInCmdLineStr.c
+	FindBootPartitionHandle.c
 [Packages]
   MdePkg/MdePkg.dec
 
@@ -59,4 +60,4 @@
   gEfiBlockIoProtocolGuid
   gEfiBlockIo2ProtocolGuid
 [BuildOptions]
-  MSFT:*_*_X64_CC_FLAGS =  /Oi- /FAcs /Od 
+

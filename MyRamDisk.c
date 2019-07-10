@@ -13,12 +13,15 @@ EFI_STATUS EFIAPI UefiMain(
 		)
 	{
         EFI_STATUS               		Status;
-
+		DIDO_CMDLINE_STATUS				*CmdLineStatus;
 		EFI_FILE_HANDLE					BootFileHandleInRamDisk;
 		EFI_DEVICE_PATH_PROTOCOL		*CurrDirDP;
 		EFI_FILE_HANDLE					IsoFileHandle;
 		EFI_FILE_HANDLE					CurrDirHandle;
 		
+		///初始化命令行参数状态
+		CmdLineStatus=AllocateZeroPool(sizeof(DIDO_CMDLINE_STATUS));
+
 		
 		///获取当前目录
 		CurrDirDP=GetCurrDirDP(gImageHandle,L"");
@@ -33,7 +36,7 @@ EFI_STATUS EFIAPI UefiMain(
 			return EFI_SUCCESS;
 			}
 		///处理命令行参数
-		IsoFileHandle=OpenIsoFileInCmdLineStr(CurrDirHandle);
+		IsoFileHandle=OpenIsoFileInCmdLineStr(CmdLineStatus,CurrDirHandle);
 		if(NULL==IsoFileHandle){	
 			///处理配置文件
 			IsoFileHandle=ProcCfgFile(CurrDirDP,CurrDirHandle,L"isoboot.cfg");
@@ -46,23 +49,20 @@ EFI_STATUS EFIAPI UefiMain(
 					}
 				}
 			}		
-		///内存方式安装虚拟盘	
-//		Status=MyFileDiskInstall(IsoFileHandle,TRUE);
-		///非内存方式安装虚拟盘	
-		Status=MyFileDiskInstall(IsoFileHandle,FALSE);
-/*		if(EFI_ERROR (Status)) {
-			Print(L"Install virtual disk failed!\n");
-			goto errordroptoshell;
-			}
-*/			
-		///打开虚拟盘上的启动文件	
-		Status=LoadBootFileInVirtualDisk(pridata[0].VirDiskDevicePath,&BootFileHandleInRamDisk);
+		///安装虚拟盘	
+		Status=MyFileDiskInstall(IsoFileHandle,CmdLineStatus->LoadIsoInMemory);
+		
+		///打开虚拟盘上的启动文件
+		
+		Status=LoadBootFileInVirtualDisk(EFI_ERROR(Status)?NULL:pridata[2].VirDiskHandle,&BootFileHandleInRamDisk);
 		if(EFI_ERROR (Status)) {
 			Print(L"Sorry!Can't boot this iso file.\n");
 			goto errordroptoshell;
 			}
-		///等待?秒，并降低运行级别到application级，否则实机蓝屏重启
-		DidoWaitSec(0);
+		///检查调试开关
+		if(CmdLineStatus->DebugDropToShell==TRUE)goto errordroptoshell;
+		///等待WaitTimeSec秒，并降低运行级别到application级，否则实机死机重启
+		DidoWaitSec(CmdLineStatus->WaitTimeSec);
 		///启动
 		Status=gBS->StartImage(	BootFileHandleInRamDisk,0,	NULL);
 		if(EFI_ERROR (Status)) {
@@ -84,8 +84,8 @@ errordroptoshell:
 			0,
 			(VOID**)&BootFileHandleInRamDisk				//传入HANDLE地址	
 			);				
-		///等待3秒
-		DidoWaitSec(3);	
+		///等待WaitTimeSec秒
+		DidoWaitSec(CmdLineStatus->WaitTimeSec);	
 		Status=gBS->StartImage(	BootFileHandleInRamDisk,0,	NULL);
 		if(EFI_ERROR (Status)) {
 			Print(L"Start shellx64.efi failed!\n");

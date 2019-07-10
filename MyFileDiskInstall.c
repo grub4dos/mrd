@@ -15,7 +15,7 @@ EFI_STATUS
 	{
 		EFI_STATUS 							Status=EFI_SUCCESS;
 		EFI_DEVICE_PATH_PROTOCOL 			*TempPath1;
-		EFI_SIMPLE_FILE_SYSTEM_PROTOCOL		*PartitionSFSProtocol=NULL;				//用于测试是否已安装fat协议
+		EFI_SIMPLE_FILE_SYSTEM_PROTOCOL		*PartitionSFSProtocol=NULL;				//用于测试是否已安装fat协议,没用了
 		//初始化全局指针pridata,分配3个私有数据结构，第一个用于整个光盘，第二个用于传统启动分区，第三个用于efi启动分区
 		pridata=AllocatePool(3*sizeof(DIDO_DISK_PRIVATE_DATA)+8);
 		///初始化不同部分
@@ -25,14 +25,14 @@ EFI_STATUS
 		Status=FindPartitionInFile(FileDiskFileHandle,&pridata[1].StartAddr,&pridata[1].Size,&pridata[2].StartAddr,&pridata[2].Size);
 		if(EFI_ERROR (Status)) {
 			Print(L"No bootable partition on the virtual disk!\n");
-			return Status;
+			return EFI_NOT_FOUND;
 			}		
 		if(DiskInRam){				//是否需要载入内存
 			//分配内存
 			Status = gBS->AllocatePool (EfiBootServicesData,pridata[0].Size+8,(VOID**)&pridata[0].StartAddr); 
 			if(EFI_ERROR (Status)) {
 				Print(L"Allocate Memory failed!\n");
-				return Status;
+				return EFI_NOT_FOUND;
 				}
 			Print(L"Creating ramdisk.Please wait.\n");
 			//全读iso文件
@@ -41,7 +41,7 @@ EFI_STATUS
 			if(EFI_ERROR (Status)){
 				Print(L"ReadFile failed.Error=[%r]\n",Status);
 				Status=gBS->FreePool((VOID*)pridata[0].StartAddr);
-				return Status;
+				return EFI_NOT_FOUND;
 				}
 			//不载入内存则StartAddr代表文件偏移量
 			}else{
@@ -59,18 +59,19 @@ EFI_STATUS
 		
 		
 		//填写DP
+		//整个光盘镜像的DP
 		TempPath1=CreateDeviceNode  ( HARDWARE_DEVICE_PATH ,HW_VENDOR_DP ,  sizeof(VENDOR_DEVICE_PATH));
 		((VENDOR_DEVICE_PATH*)TempPath1)->Guid=MyGuid;
 		pridata[0].VirDiskDevicePath=AppendDevicePathNode(NULL,TempPath1);
 		FreePool(TempPath1);
-		
+		//传统启动映像，多数是引导代码
 		TempPath1=CreateDeviceNode  ( MEDIA_DEVICE_PATH ,MEDIA_CDROM_DP ,  sizeof(CDROM_DEVICE_PATH));		
 		((CDROM_DEVICE_PATH*)TempPath1)->BootEntry=0;
 		((CDROM_DEVICE_PATH*)TempPath1)->PartitionStart=(pridata[1].StartAddr-pridata[0].StartAddr)/RAM_DISK_BLOCK_SIZE;
 		((CDROM_DEVICE_PATH*)TempPath1)->PartitionSize=pridata[1].Size/RAM_DISK_BLOCK_SIZE;
 		pridata[1].VirDiskDevicePath=AppendDevicePathNode(pridata[0].VirDiskDevicePath,TempPath1);
 		FreePool(TempPath1);
-		
+		//efi启动映像，一般是一个包含/efi/boot/bootx64.efi的软盘
 		TempPath1=CreateDeviceNode  ( MEDIA_DEVICE_PATH ,MEDIA_CDROM_DP ,  sizeof(CDROM_DEVICE_PATH));		
 		((CDROM_DEVICE_PATH*)TempPath1)->BootEntry=1;
 		((CDROM_DEVICE_PATH*)TempPath1)->PartitionStart=(pridata[2].StartAddr-pridata[0].StartAddr)/RAM_DISK_BLOCK_SIZE;
@@ -115,7 +116,7 @@ EFI_STATUS
 
 
 		//安装启动映像的块协议		
-		Print(L"installing protocol\n");
+		Print(L"installing partition blockio protocol\n");
 		Status = gBS->InstallMultipleProtocolInterfaces (
 			&pridata[2].VirDiskHandle,
 			&gEfiDevicePathProtocolGuid,
@@ -128,17 +129,55 @@ EFI_STATUS
 
 			NULL
 			);
-//		Status=gBS->ConnectController (pridata[2].VirDiskHandle, NULL, NULL, TRUE);				
+		if(EFI_ERROR(Status)){
+			Print(L"%r\n",Status);
+			Exit(Status);
+			}
 		
-		///如果没有加载fat驱动则找到fat驱动句柄并安装
-		gBS->HandleProtocol(pridata[2].VirDiskHandle,&gEfiSimpleFileSystemProtocolGuid,(VOID**)&PartitionSFSProtocol);
-		if(PartitionSFSProtocol==NULL){
+		Print(L"Virtual partition handle is : %X\n",pridata[2].VirDiskHandle);	
+
+		gBS->ConnectController (pridata[2].VirDiskHandle, NULL, NULL, TRUE);	
+		//将磁盘放到分区后面来安装是因为virtualbox的固件下，生成的分区有时候有错误
+		//安装磁盘的块协议		
+		Print(L"installing disk blockio protocol\n");
+		gBS->InstallMultipleProtocolInterfaces (
+			&pridata[0].VirDiskHandle,
+			&gEfiDevicePathProtocolGuid,
+			pridata[0].VirDiskDevicePath,
+			&gEfiBlockIoProtocolGuid,
+			&pridata[0].BlockIo,
+	  
+			&gEfiBlockIo2ProtocolGuid,
+			&pridata[0].BlockIo2,
+
+			NULL
+			);		
+		Print(L"Virtual disk handle is : %X\n",pridata[0].VirDiskHandle);
+		gBS->ConnectController (pridata[0].VirDiskHandle, NULL, NULL, TRUE);
+				
+		//实验表明执行完ConnectController后大部分固件会自动为pridata[2].VirDiskHandle安装好fat协议		
+		//但是由bios转uefi见此贴http://bbs.wuyou.net/forum.php?mod=viewthread&tid=378197&extra=的固件会错误的
+		//给pridata[2].VirDiskHandle再安装一个partition协议，而不是fat协议，导致在此条件下不能正常启动。
+
+		Status=gBS->HandleProtocol(pridata[2].VirDiskHandle,&gEfiSimpleFileSystemProtocolGuid,(VOID**)&PartitionSFSProtocol);
+		if(!EFI_ERROR(Status)){
+			return EFI_SUCCESS;
+			}
+		if(FindBootPartitionHandle()){
+			return EFI_ALREADY_STARTED;
+			}			
+		//下面的语句在系统中搜索fat驱动，然后为pridata[2].VirDiskHandle强制安装fat协议
+		//如果固件没有自动为pridata[2].VirDiskHandle安装fat协议，则找到fat驱动句柄并强制安装fat协议		
+		{
+
 			EFI_HANDLE							FatDriverHandle=NULL;
 			EFI_HANDLE							*Buffer;
 			UINTN								BufferCount;
 			UINTN								BufferIndex;
 			EFI_COMPONENT_NAME_PROTOCOL			*DriverNameProtocol;
 			CHAR16								*DriverName;
+			
+			
 			//列出所有的支持驱动名字的句柄
 			Status=gBS->LocateHandleBuffer(ByProtocol,&gEfiComponentNameProtocolGuid,NULL,&BufferCount,&Buffer);
 			if(EFI_ERROR (Status)){
@@ -160,31 +199,12 @@ EFI_STATUS
 			if(FatDriverHandle!=NULL){
 				Status=gBS->ConnectController (pridata[2].VirDiskHandle, &FatDriverHandle, NULL, TRUE);
 				Print(L"ConnectController Fat %r\n",Status);
+				return EFI_SUCCESS;
 				}else{
-					Print(L"Can't find FAT Driver");
+					Print(L"Can't find FAT Driver\n");
+					return EFI_NOT_FOUND;
 					}
-
-			}
 			
-		 //安装磁盘的块协议		
-		Print(L"installing protocol\n");
-		Status = gBS->InstallMultipleProtocolInterfaces (
-			&pridata[0].VirDiskHandle,
-			&gEfiDevicePathProtocolGuid,
-			pridata[0].VirDiskDevicePath,
-			&gEfiBlockIoProtocolGuid,
-			&pridata[0].BlockIo,
-	  
-			&gEfiBlockIo2ProtocolGuid,
-			&pridata[0].BlockIo2,
+		}	
 
-			NULL
-			);		
-		Print(L"Virtual disk handle is : %X\n",pridata[0].VirDiskHandle);
-		Status=gBS->ConnectController (pridata[0].VirDiskHandle, NULL, NULL, TRUE);	
-		 
-		
-
-
-		return Status;
 	}

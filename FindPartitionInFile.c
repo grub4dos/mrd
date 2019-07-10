@@ -15,6 +15,7 @@ EFI_STATUS
 			UINTN						DescriptorSize=RAM_DISK_BLOCK_SIZE;	
 			UINTN						DbrImageSize=2;
 			UINT16						DbrImageSizeBuffer;
+			
 			VolDescriptor = AllocatePool (DescriptorSize);
 			if (VolDescriptor == NULL) {
 				return EFI_NOT_FOUND;
@@ -24,6 +25,7 @@ EFI_STATUS
 			FileHandleRead(FileDiskFileHandle,&DescriptorSize,VolDescriptor);
 			if(	VolDescriptor->Unknown.Type!=CDVOL_TYPE_STANDARD||
 				CompareMem (VolDescriptor->BootRecordVolume.SystemId, CDVOL_ELTORITO_ID, sizeof (CDVOL_ELTORITO_ID) - 1) != 0){
+				FreePool(VolDescriptor);
 				return EFI_NOT_FOUND;
 				}
 			//判断启动目录	
@@ -31,6 +33,7 @@ EFI_STATUS
 			FileHandleSetPosition(FileDiskFileHandle,*((UINT32*)VolDescriptor->BootRecordVolume.EltCatalog)*RAM_DISK_BLOCK_SIZE); 	
 			FileHandleRead(FileDiskFileHandle,&DescriptorSize,TempCatalog);	
 			if( TempCatalog[0].Catalog.Indicator!=ELTORITO_ID_CATALOG){
+				FreePool(VolDescriptor);
 				return EFI_NOT_FOUND;
 				}
 			for(UINTN	i=0;i<64;i++){
@@ -38,7 +41,7 @@ EFI_STATUS
 					TempCatalog[i+1].Boot.Indicator==ELTORITO_ID_SECTION_BOOTABLE&&
 					TempCatalog[i+1].Boot.LoadSegment==0x7c0){
 					*NoBootStartAddr	=TempCatalog[i+1].Boot.Lba*RAM_DISK_BLOCK_SIZE;
-					*NoBootSize	 	=TempCatalog[i+1].Boot.SectorCount*RAM_DISK_BLOCK_SIZE;
+					*NoBootSize	 		=TempCatalog[i+1].Boot.SectorCount*FLOPPY_DISK_BLOCK_SIZE;
 					
 					}
 				
@@ -46,32 +49,27 @@ EFI_STATUS
 				if( TempCatalog[i].Section.Indicator==ELTORITO_ID_SECTION_HEADER_FINAL&&
 					TempCatalog[i].Section.PlatformId==IS_EFI_SYSTEM_PARTITION&&
 					TempCatalog[i+1].Boot.Indicator==ELTORITO_ID_SECTION_BOOTABLE ){
-					*BootStartAddr=TempCatalog[i+1].Boot.Lba*RAM_DISK_BLOCK_SIZE;
-					*BootSize	 =TempCatalog[i+1].Boot.SectorCount*RAM_DISK_BLOCK_SIZE;
+						
+					*BootStartAddr	=TempCatalog[i+1].Boot.Lba*RAM_DISK_BLOCK_SIZE;
+					*BootSize		=TempCatalog[i+1].Boot.SectorCount*FLOPPY_DISK_BLOCK_SIZE;
 					//有些光盘的映像大小设定不正确，太小就读取软盘映像的dbr
 					FileHandleSetPosition(FileDiskFileHandle,*BootStartAddr+0x13); 	
 					FileHandleRead(FileDiskFileHandle,&DbrImageSize,&DbrImageSizeBuffer);
-					if( *BootSize<DbrImageSizeBuffer*RAM_DISK_BLOCK_SIZE){
-						*BootSize=DbrImageSizeBuffer*RAM_DISK_BLOCK_SIZE;
-						}
+					
+					DbrImageSize=DbrImageSizeBuffer*FLOPPY_DISK_BLOCK_SIZE;
+					*BootSize=*BootSize>DbrImageSize?*BootSize:DbrImageSize;
+						
 					//仍然太小则设为固定值	
-					if(*BootSize<0x1680*RAM_DISK_BLOCK_SIZE){
-						*BootSize=0x1680*RAM_DISK_BLOCK_SIZE;
+					if(*BootSize<BLOCK_OF_1_44MB*FLOPPY_DISK_BLOCK_SIZE){
+						*BootSize=BLOCK_OF_1_44MB*FLOPPY_DISK_BLOCK_SIZE;
 						}
+					FreePool(VolDescriptor);	
 					return EFI_SUCCESS;
 					}
 				
 				}				
 
-				
-				
-				
-				
-				
-				
-				
-				
-				
-				
+	
+		FreePool(VolDescriptor);		
 		return 	EFI_NOT_FOUND;		
 		}
