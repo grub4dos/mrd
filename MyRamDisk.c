@@ -61,8 +61,8 @@ EFI_STATUS EFIAPI UefiMain(
 			Print(L"Sorry!Can't boot this iso file.\n");
 			goto errordroptoshell;
 			}
-		///等待10秒
-//		DidoWaitSec(10);
+		///等待?秒，并降低运行级别到application级，否则实机蓝屏重启
+		DidoWaitSec(0);
 		///启动
 		Status=gBS->StartImage(	BootFileHandleInRamDisk,0,	NULL);
 		if(EFI_ERROR (Status)) {
@@ -84,8 +84,8 @@ errordroptoshell:
 			0,
 			(VOID**)&BootFileHandleInRamDisk				//传入HANDLE地址	
 			);				
-		///等待30秒
-		DidoWaitSec(30);	
+		///等待3秒
+		DidoWaitSec(3);	
 		Status=gBS->StartImage(	BootFileHandleInRamDisk,0,	NULL);
 		if(EFI_ERROR (Status)) {
 			Print(L"Start shellx64.efi failed!\n");

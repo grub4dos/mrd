@@ -34,9 +34,9 @@ EFI_STATUS
 				return EFI_NOT_FOUND;
 				}
 			for(UINTN	i=0;i<64;i++){
-				if( TempCatalog[i].Section.PlatformId!=IS_EFI_SYSTEM_PARTITION&&
+				if( TempCatalog[i].Catalog.Indicator==ELTORITO_ID_CATALOG&&
 					TempCatalog[i+1].Boot.Indicator==ELTORITO_ID_SECTION_BOOTABLE&&
-					TempCatalog[i+1].Boot.LoadSegment==0x7c00){
+					TempCatalog[i+1].Boot.LoadSegment==0x7c0){
 					*NoBootStartAddr	=TempCatalog[i+1].Boot.Lba*RAM_DISK_BLOCK_SIZE;
 					*NoBootSize	 	=TempCatalog[i+1].Boot.SectorCount*RAM_DISK_BLOCK_SIZE;
 					
@@ -54,6 +54,7 @@ EFI_STATUS
 					if( *BootSize<DbrImageSizeBuffer*RAM_DISK_BLOCK_SIZE){
 						*BootSize=DbrImageSizeBuffer*RAM_DISK_BLOCK_SIZE;
 						}
+					//仍然太小则设为固定值	
 					if(*BootSize<0x1680*RAM_DISK_BLOCK_SIZE){
 						*BootSize=0x1680*RAM_DISK_BLOCK_SIZE;
 						}

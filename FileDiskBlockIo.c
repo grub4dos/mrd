@@ -314,7 +314,7 @@ FileDiskBlkIo2ReadBlocksEx (
   DIDO_DISK_PRIVATE_DATA           *PrivateData;
   EFI_STATUS                      Status;
 
-PrivateData = DIDO_DISK_PRIVATE_DATA_BLOCKIO_TO_PARENT(This);
+PrivateData = DIDO_DISK_PRIVATE_DATA_BLOCKIO2_TO_PARENT(This);
 
   Status = FileDiskBlkIoReadBlocks (
               &PrivateData->BlockIo,
@@ -385,7 +385,7 @@ FileDiskBlkIo2WriteBlocksEx (
   DIDO_DISK_PRIVATE_DATA           *PrivateData;
   EFI_STATUS                      Status;
 
-PrivateData = DIDO_DISK_PRIVATE_DATA_BLOCKIO_TO_PARENT(This);
+PrivateData = DIDO_DISK_PRIVATE_DATA_BLOCKIO2_TO_PARENT(This);
 
   Status = FileDiskBlkIoWriteBlocks (
               &PrivateData->BlockIo,
@@ -438,7 +438,7 @@ FileDiskBlkIo2FlushBlocksEx (
 {
   DIDO_DISK_PRIVATE_DATA           *PrivateData;
 
-PrivateData = DIDO_DISK_PRIVATE_DATA_BLOCKIO_TO_PARENT(This);
+PrivateData = DIDO_DISK_PRIVATE_DATA_BLOCKIO2_TO_PARENT(This);
 
   if (TRUE == PrivateData->Media.ReadOnly) {
     return EFI_WRITE_PROTECTED;

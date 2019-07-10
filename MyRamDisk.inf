@@ -51,9 +51,9 @@
   #LibStdio
   
 [Protocols]
-  gEfiRamDiskProtocolGuid                        ## PRODUCES
+#  gEfiRamDiskProtocolGuid                        ## PRODUCES
   gEfiDevicePathToTextProtocolGuid
-  gEfiLoadFileProtocolGuid
+#  gEfiLoadFileProtocolGuid
   gEfiLoadedImageProtocolGuid
   gEfiLoadedImageDevicePathProtocolGuid
   gEfiBlockIoProtocolGuid

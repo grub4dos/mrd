@@ -13,10 +13,10 @@ EFI_STATUS
 		IN	BOOLEAN				DiskInRam
 	)
 	{
-		EFI_STATUS 						Status=EFI_SUCCESS;
-		EFI_DEVICE_PATH_PROTOCOL 		*TempPath1;
-		
-		//初始化全局指针pridata
+		EFI_STATUS 							Status=EFI_SUCCESS;
+		EFI_DEVICE_PATH_PROTOCOL 			*TempPath1;
+		EFI_SIMPLE_FILE_SYSTEM_PROTOCOL		*PartitionSFSProtocol=NULL;				//用于测试是否已安装fat协议
+		//初始化全局指针pridata,分配3个私有数据结构，第一个用于整个光盘，第二个用于传统启动分区，第三个用于efi启动分区
 		pridata=AllocatePool(3*sizeof(DIDO_DISK_PRIVATE_DATA)+8);
 		///初始化不同部分
 		//获取文件大小
@@ -43,7 +43,7 @@ EFI_STATUS
 				Status=gBS->FreePool((VOID*)pridata[0].StartAddr);
 				return Status;
 				}
-			
+			//不载入内存则StartAddr代表文件偏移量
 			}else{
 				pridata[0].StartAddr=0;
 				
@@ -100,7 +100,7 @@ EFI_STATUS
 			pridata[i].Media.LogicalPartition 		= TRUE;					//不同	
 			pridata[i].Media.ReadOnly         		= TRUE;								//被我修改以适应虚拟光驱原来是FALSE
 			pridata[i].Media.WriteCaching     		= FALSE;
-			pridata[i].Media.IoAlign 		  		= 0x8;				//不添加这个参数不能被diskio识别
+			pridata[i].Media.IoAlign 		  		= RAM_DISK_BLOCK_SIZE;				//不添加这个参数不能被diskio识别
 			pridata[i].Media.BlockSize        		= RAM_DISK_BLOCK_SIZE;
 			pridata[i].Media.LastBlock        		= DivU64x32 (
 														  pridata[i].Size + RAM_DISK_BLOCK_SIZE - 1,
@@ -109,12 +109,12 @@ EFI_STATUS
 			
 
 			}
+		pridata[0].Media.LogicalPartition 		= FALSE;
 
-		pridata[2].Media.BlockSize        		= 0x200;
 				
 
-	
-		//安装协议		
+
+		//安装启动映像的块协议		
 		Print(L"installing protocol\n");
 		Status = gBS->InstallMultipleProtocolInterfaces (
 			&pridata[2].VirDiskHandle,
@@ -128,8 +128,11 @@ EFI_STATUS
 
 			NULL
 			);
-		///找到fat驱动句柄并安装	
-		{
+//		Status=gBS->ConnectController (pridata[2].VirDiskHandle, NULL, NULL, TRUE);				
+		
+		///如果没有加载fat驱动则找到fat驱动句柄并安装
+		gBS->HandleProtocol(pridata[2].VirDiskHandle,&gEfiSimpleFileSystemProtocolGuid,(VOID**)&PartitionSFSProtocol);
+		if(PartitionSFSProtocol==NULL){
 			EFI_HANDLE							FatDriverHandle=NULL;
 			EFI_HANDLE							*Buffer;
 			UINTN								BufferCount;
@@ -142,26 +145,28 @@ EFI_STATUS
 				Print(L"ComponentNameProtocol not found.Error=[%r]\n",Status);
 				//return Status;
 				}
+			//循环缓冲区中的所有句柄	
 			for(BufferIndex=0;BufferIndex<BufferCount;BufferIndex++){
 				gBS->HandleProtocol(Buffer[BufferIndex],&gEfiComponentNameProtocolGuid,(VOID**)&DriverNameProtocol);
 				DriverNameProtocol->GetDriverName(DriverNameProtocol,"eng",&DriverName);
+				//是否fat驱动
 				if(NULL!=StrStr(DriverName,L"FAT File System Driver")){
 					FatDriverHandle=Buffer[BufferIndex];
 					Print(L"FatDriverHandle is:%X\n",FatDriverHandle);
 					break;
 					}
 				}
+			//是否找到了fat驱动	
 			if(FatDriverHandle!=NULL){
-				Status=gBS->ConnectController (pridata[2].VirDiskHandle, &FatDriverHandle, NULL, FALSE);
+				Status=gBS->ConnectController (pridata[2].VirDiskHandle, &FatDriverHandle, NULL, TRUE);
 				Print(L"ConnectController Fat %r\n",Status);
 				}else{
 					Print(L"Can't find FAT Driver");
 					}
-		}
-			  
-		
 
-		//安装协议		
+			}
+			
+		 //安装磁盘的块协议		
 		Print(L"installing protocol\n");
 		Status = gBS->InstallMultipleProtocolInterfaces (
 			&pridata[0].VirDiskHandle,
@@ -176,6 +181,10 @@ EFI_STATUS
 			NULL
 			);		
 		Print(L"Virtual disk handle is : %X\n",pridata[0].VirDiskHandle);
+		Status=gBS->ConnectController (pridata[0].VirDiskHandle, NULL, NULL, TRUE);	
+		 
 		
+
+
 		return Status;
 	}
