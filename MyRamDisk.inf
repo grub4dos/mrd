@@ -1,0 +1,62 @@
+## @file
+#   A simple, basic, application showing how the Hello application could be
+#   built using the "Standard C Libraries" from StdLib.
+#
+#  Copyright (c) 2010 - 2014, Intel Corporation. All rights reserved.<BR>
+#  This program and the accompanying materials
+#  are licensed and made available under the terms and conditions of the BSD License
+#  which accompanies this distribution. The full text of the license may be found at
+#  http://opensource.org/licenses/bsd-license.
+#
+#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = isoboot
+  FILE_GUID                      = 4ea97c46-7491-4dfd-c442-747010f3ce5f
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = UefiMain
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  MyRamDisk.c
+  GetCurrDirDP.c
+	FileDiskBlockIo.c
+	MyFileDiskInstall.c
+	OpenFileByDevicePath.c
+	LoadBootFileInVirtualDisk.c
+	OpenFirstIsoFileInDir.c
+	DidoWaitSec.c
+	ProcCfgFile.c
+	FindPartitionInFile.c
+	OpenIsoFileInCmdLineStr.c
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+	UefiApplicationEntryPoint
+	BaseLib
+	UefiBootServicesTableLib
+	UefiLib
+	DevicePathLib
+	FileHandleLib
+	
+	
+  #LibStdio
+  
+[Protocols]
+  gEfiRamDiskProtocolGuid                        ## PRODUCES
+  gEfiDevicePathToTextProtocolGuid
+  gEfiLoadFileProtocolGuid
+  gEfiLoadedImageProtocolGuid
+  gEfiLoadedImageDevicePathProtocolGuid
+  gEfiBlockIoProtocolGuid
+  gEfiBlockIo2ProtocolGuid
+[BuildOptions]
+  MSFT:*_*_X64_CC_FLAGS =  /Oi- /FAcs /Od 
