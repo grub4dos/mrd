@@ -213,12 +213,19 @@ FileDiskBlkIoWriteBlocks (
   if ((Lba + NumberOfBlocks - 1) > PrivateData->Media.LastBlock) {
     return EFI_INVALID_PARAMETER;
   }
+  
+  if(PrivateData->InRam){
+	CopyMem (
+		(VOID *)(UINTN)(PrivateData->StartAddr + MultU64x32 (Lba, PrivateData->Media.BlockSize)),
+		Buffer,
+		BufferSize
+		);
+	}else{	
+		FileHandleSetPosition(PrivateData->VirDiskFileHandle, PrivateData->StartAddr+MultU64x32 (Lba, PrivateData->Media.BlockSize));
+		FileHandleWrite( PrivateData->VirDiskFileHandle,  &BufferSize,  Buffer); 
+		}
+	  
 
-  CopyMem (
-    (VOID *)(UINTN)(PrivateData->StartAddr + MultU64x32 (Lba, PrivateData->Media.BlockSize)),
-    Buffer,
-    BufferSize
-    );
 
   return EFI_SUCCESS;
 }

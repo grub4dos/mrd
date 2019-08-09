@@ -16,9 +16,9 @@
 #include 	<Protocol/LoadedImage.h>
 #include 	<Protocol/BlockIo.h>
 #include 	<Protocol/BlockIo2.h>
-
+#include 	<Protocol/DiskIo.h>
 #include 	<IndustryStandard/ElTorito.h>
-
+#include 	<IndustryStandard/Mbr.h>
 
 //
 // Block size for RAM disk
@@ -30,34 +30,46 @@
 #define IS_EFI_SYSTEM_PARTITION 239
 #define DIDO_DISK_PRIVATE_DATA_BLOCKIO_TO_PARENT(a) ((DIDO_DISK_PRIVATE_DATA *)((CHAR8 *)(a)-(CHAR8 *) &(((DIDO_DISK_PRIVATE_DATA *) 0)->BlockIo)))
 #define DIDO_DISK_PRIVATE_DATA_BLOCKIO2_TO_PARENT(a) ((DIDO_DISK_PRIVATE_DATA *)((CHAR8 *)(a)-(CHAR8 *) &(((DIDO_DISK_PRIVATE_DATA *) 0)->BlockIo2)))
-
-// {E4F3CE96-064F-4DA5-8C71-33232B9D9F2A}
+#define MAX_FILE_NAME_STRING_SIZE 255
+#define MBR_START_LBA 0
+// {CF03E624-DD29-426D-86A8-CB21E97E4C9B}
 static const EFI_GUID MyGuid = 
-{ 0xe4f3ce96, 0x64f, 0x4da5, { 0x8c, 0x71, 0x33, 0x23, 0x2b, 0x9d, 0x9f, 0x2a } };
+{ 0xcf03e624, 0xdd29, 0x426d, { 0x86, 0xa8, 0xcb, 0x21, 0xe9, 0x7e, 0x4c, 0x9b } };
 
-
+typedef enum {
+	///指出镜像文件类型
+	ISOFILE,
+	HARDDISKFILE,
+	FLOPPYFILE
+	}IMAGE_FILE_TYPE;
 
 
 typedef struct {
 	///命令行参数的结构
-	UINTN								WaitTimeSec;
-	BOOLEAN								LoadIsoInMemory;
+	CHAR16								*OptionString;
+	UINTN								OptionStringSizeInByte;	
+	BOOLEAN								LoadInMemory;
 	BOOLEAN								DebugDropToShell;
-	}DIDO_CMDLINE_STATUS;
+	IMAGE_FILE_TYPE						ImageFileType;
+	CHAR16								*DevicePathToFindImage;
+	CHAR16								*ImageFileName;  
+	UINTN								WaitTimeSec;
+	BOOLEAN								UseBuildInNtfsDriver;
+	}DIDO_OPTION_STATUS;
 
 
 
 typedef struct {
 
-	///整个光盘的信息
+	///虚拟设备的私有数据结构
 	BOOLEAN							Present;					//不同
 	EFI_HANDLE                      VirDiskHandle;				//不同
 	EFI_DEVICE_PATH_PROTOCOL        *VirDiskDevicePath;			//不同
 	EFI_FILE_HANDLE				  	VirDiskFileHandle;			//相同
 	BOOLEAN						  	InRam;						//相同
-	UINT64                          StartAddr;					//不同
-	UINT64                          Size;						//不同
-	
+	UINTN                          	StartAddr;					//不同
+	UINT64	                        Size;						//不同
+	UINT32							UniqueMbrSignature;        	//硬盘分区表前面的签名
 	//以下三条由blockinit填充，其余由install填充
 	EFI_BLOCK_IO_PROTOCOL           BlockIo;
 	EFI_BLOCK_IO2_PROTOCOL          BlockIo2;
@@ -153,12 +165,7 @@ FileDiskBlkIo2FlushBlocksEx (
 
 
 
-///创建虚拟盘
-EFI_STATUS
-	MyFileDiskInstall(
-		IN 	EFI_FILE_HANDLE 	FileDiskFileHandle,
-		IN	BOOLEAN				DiskInRam
-	);
+
 ///取得当前目录
 EFI_DEVICE_PATH_PROTOCOL* 
 	GetCurrDirDP(
@@ -191,27 +198,36 @@ EFI_FILE_HANDLE
 		IN	EFI_FILE_HANDLE						DirToSearch
 		);
 
-///根据配置文件名打开iso文件句柄
-EFI_FILE_HANDLE
-	ProcCfgFile(
-		EFI_DEVICE_PATH_PROTOCOL		*CurrDirDP,
-		EFI_FILE_HANDLE					CurrDirHandle,
-		IN 		 CHAR16					*ConfigFileName			//配置文件名
-		);
-///找出分区信息，返回到后4个参数中
+///将配置文件的内容传到OptionStatus->ImageFileName
 EFI_STATUS
-	FindPartitionInFile(
+	ProcCfgFile(
+		DIDO_OPTION_STATUS						*OptionStatus,	
+		EFI_FILE_HANDLE							CurrDirHandle,
+		IN 				 CHAR16					*ConfigFileName			//配置文件名
+		);
+///找出光盘分区信息，返回到后4个参数中
+EFI_STATUS
+	FindPartitionInIsoFile(
 		IN		EFI_FILE_HANDLE			FileDiskFileHandle,
-		OUT		UINT64					*NoBootStartAddr,
+		OUT		UINTN					*NoBootStartAddr,
 		OUT		UINT64					*NoBootSize,
-		OUT		UINT64					*BootStartAddr,
+		OUT		UINTN					*BootStartAddr,
 		OUT		UINT64					*BootSize
 		);
-
-///打开命令行指定的iso文件，返回句柄,以及延时和是否载入内存的参数	
+///找出硬盘分区信息，返回到后4个参数中
+EFI_STATUS
+	FindPartitionInHdFile(
+		IN		EFI_FILE_HANDLE			FileDiskFileHandle,
+		OUT		UINTN					*NoBootStartAddr,
+		OUT		UINT64					*NoBootSize,
+		OUT		UINTN					*BootStartAddr,
+		OUT		UINT64					*BootSize,
+		OUT		UINT32					*UniqueMbrSignature	
+		);
+///打开OptionStatus指定的文件，返回句柄	
 EFI_FILE_HANDLE
-	OpenIsoFileInCmdLineStr(
-		DIDO_CMDLINE_STATUS					*CmdLineStatus,
+	OpenFileInOptionStatus(
+		DIDO_OPTION_STATUS					*OptionStatus,
 		EFI_FILE_HANDLE						CurrDirHandle
 	);
 
@@ -220,4 +236,34 @@ EFI_FILE_HANDLE
 EFI_HANDLE
 	FindBootPartitionHandle();
 
+///处理命令行，将结果送入OptionStatus
+EFI_STATUS
+	ProcCmdLine(
+		DIDO_OPTION_STATUS					*OptionStatus
+	);
+///安装虚拟硬盘
+EFI_STATUS
+	HdFileDiskInstall(
+		IN 	EFI_FILE_HANDLE 	FileDiskFileHandle,
+		IN	BOOLEAN				DiskInRam
+	);
+///安装虚拟光盘
+EFI_STATUS
+	IsoFileDiskInstall(
+		IN 	EFI_FILE_HANDLE 	FileDiskFileHandle,
+		IN	BOOLEAN				DiskInRam
+	);
+///加载ntfs驱动
+EFI_STATUS
+	LoadNtfsDriver(
+	);
+	
+///分析命令行串，将结果送入OptionStatus的成员
+EFI_STATUS
+	DispatchOptions(
+		DIDO_OPTION_STATUS					*OptionStatus
+	);	
+	
+	
+	
 #endif

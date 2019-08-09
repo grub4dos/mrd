@@ -22,6 +22,7 @@ LoadBootFileInVirtualDisk(
 		BootFileDevicePath2=FileDevicePath(BootImagePartitionHandle,EFI_REMOVABLE_MEDIA_FILE_NAME);
 		TextFoundDevicePathToCmp=ConvertDevicePathToText(BootFileDevicePath2, FALSE, FALSE);
 		Print(L"Boot file path is:%s\n",TextFoundDevicePathToCmp);
+		if(NULL!=TextFoundDevicePathToCmp)FreePool(TextFoundDevicePathToCmp);
 		Status=gBS->LoadImage(
 			FALSE,
 			gImageHandle,                   //parent不能为空，传入本文件的Handle

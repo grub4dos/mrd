@@ -31,9 +31,16 @@ EFI_HANDLE
 				!CompareGuid(&((VENDOR_DEVICE_PATH*)FoundDevicePathToCmp)->Guid,&MyGuid))continue;
 			//测试子节点，不同则下一个	
 			FoundDevicePathToCmp=NextDevicePathNode(FoundDevicePathToCmp);	
-			if(((CDROM_DEVICE_PATH*)FoundDevicePathToCmp)->Header.Type!=MEDIA_DEVICE_PATH||
+			if(
+				(((CDROM_DEVICE_PATH*)FoundDevicePathToCmp)->Header.Type!=MEDIA_DEVICE_PATH||
 				((CDROM_DEVICE_PATH*)FoundDevicePathToCmp)->Header.SubType!=MEDIA_CDROM_DP||
-				((CDROM_DEVICE_PATH*)FoundDevicePathToCmp)->BootEntry!=1)continue;
+				((CDROM_DEVICE_PATH*)FoundDevicePathToCmp)->BootEntry!=1)
+				&&
+				(((HARDDRIVE_DEVICE_PATH*)FoundDevicePathToCmp)->Header.Type!=MEDIA_DEVICE_PATH||
+				((HARDDRIVE_DEVICE_PATH*)FoundDevicePathToCmp)->Header.SubType!=MEDIA_HARDDRIVE_DP||
+				((HARDDRIVE_DEVICE_PATH*)FoundDevicePathToCmp)->PartitionSize!=pridata[2].Size/FLOPPY_DISK_BLOCK_SIZE)
+				)
+				continue;
 			FoundDeviceHandle=Buffer[BufferIndex];
 			break;
 			}

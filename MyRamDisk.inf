@@ -1,4 +1,4 @@
-## @file
+## @file 
 #   A simple, basic, application showing how the Hello application could be
 #   built using the "Standard C Libraries" from StdLib.
 #
@@ -14,8 +14,8 @@
 
 [Defines]
   INF_VERSION                    = 0x00010006
-  BASE_NAME                      = isoboot
-  FILE_GUID                      = 4ea97c46-7491-4dfd-c442-747010f3ce5f
+  BASE_NAME                      = imgboot
+  FILE_GUID                      = 6C6A0768-63F9-479B-B0A9-375DA47E8BED
   MODULE_TYPE                    = UEFI_APPLICATION
   VERSION_STRING                 = 0.1
   ENTRY_POINT                    = UefiMain
@@ -28,15 +28,20 @@
   MyRamDisk.c
   GetCurrDirDP.c
 	FileDiskBlockIo.c
-	MyFileDiskInstall.c
+	IsoFileDiskInstall.c
+	HdFileDiskInstall.c
 	OpenFileByDevicePath.c
 	LoadBootFileInVirtualDisk.c
 	OpenFirstIsoFileInDir.c
 	DidoWaitSec.c
 	ProcCfgFile.c
-	FindPartitionInFile.c
-	OpenIsoFileInCmdLineStr.c
+	FindPartitionInIsoFile.c
+	FindPartitionInHdFile.c
+	OpenFileInOptionStatus.c
 	FindBootPartitionHandle.c
+	ProcCmdLine.c
+	LoadNtfsDriver.c
+	DispatchOptions.c
 [Packages]
   MdePkg/MdePkg.dec
 
@@ -59,5 +64,6 @@
   gEfiLoadedImageDevicePathProtocolGuid
   gEfiBlockIoProtocolGuid
   gEfiBlockIo2ProtocolGuid
+  gEfiDiskIoProtocolGuid
 [BuildOptions]
 
