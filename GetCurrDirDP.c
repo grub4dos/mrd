@@ -43,7 +43,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 			SetDevicePathEndNode(TempDPFilePathNode);
 			
 			//给空的根目录添加一个斜杠
-			Print(L"DirDP len before repair is %d\n",TempDPDirPathNode->Length[0]);	
+			//Print(L"DirDP len before repair is %d\n",TempDPDirPathNode->Length[0]);	
 			//如果有两个文件节点并且第一个为空
 			if(MEDIA_DEVICE_PATH==TempDPDirPathNode->Type&&
 				MEDIA_FILEPATH_DP==TempDPDirPathNode->SubType&&
@@ -57,7 +57,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 				TempDP=AppendDevicePathNode(TempDP,TempDPDirPathNode);
 				FreePool(TempDPToFree);
 				}
-			Print(L"DirDP len after repair is %d\n",TempDPDirPathNode->Length[0]);
+			//Print(L"DirDP len after repair is %d\n",TempDPDirPathNode->Length[0]);
 			
 			//将文件名字符串复制一份
 			NodeFileName=AllocateCopyPool(2*(StrLen(((FILEPATH_DEVICE_PATH*)TempDPNode)->PathName)+1),

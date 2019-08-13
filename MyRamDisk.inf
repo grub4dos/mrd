@@ -28,17 +28,15 @@
   MyRamDisk.c
   GetCurrDirDP.c
 	FileDiskBlockIo.c
-	IsoFileDiskInstall.c
-	HdFileDiskInstall.c
+	FileDiskInstall.c
+	PartitionInstall.c
 	OpenFileByDevicePath.c
 	LoadBootFileInVirtualDisk.c
 	OpenFirstIsoFileInDir.c
 	DidoWaitSec.c
 	ProcCfgFile.c
-	FindPartitionInIsoFile.c
-	FindPartitionInHdFile.c
 	OpenFileInOptionStatus.c
-	FindBootPartitionHandle.c
+	FindAndLoadBootFileInVirtualDisk.c
 	ProcCmdLine.c
 	LoadNtfsDriver.c
 	DispatchOptions.c
@@ -65,5 +63,7 @@
   gEfiBlockIoProtocolGuid
   gEfiBlockIo2ProtocolGuid
   gEfiDiskIoProtocolGuid
+ [Guids]
+	gEfiPartTypeSystemPartGuid 
 [BuildOptions]
 

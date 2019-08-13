@@ -19,11 +19,11 @@
 #include 	<Protocol/DiskIo.h>
 #include 	<IndustryStandard/ElTorito.h>
 #include 	<IndustryStandard/Mbr.h>
-
+#include 	<Guid/Gpt.h>
 //
 // Block size for RAM disk
 //
-#define RAM_DISK_BLOCK_SIZE 2048        //被我修改以适应虚拟光驱 原来是512
+#define CD_BLOCK_SIZE 2048        
 #define FLOPPY_DISK_BLOCK_SIZE 512
 #define BLOCK_OF_1_44MB	0xB40
 #define CD_BOOT_SECTOR	17
@@ -32,15 +32,20 @@
 #define DIDO_DISK_PRIVATE_DATA_BLOCKIO2_TO_PARENT(a) ((DIDO_DISK_PRIVATE_DATA *)((CHAR8 *)(a)-(CHAR8 *) &(((DIDO_DISK_PRIVATE_DATA *) 0)->BlockIo2)))
 #define MAX_FILE_NAME_STRING_SIZE 255
 #define MBR_START_LBA 0
+#define VIRTUAL_MEDIA_ID 0x1
 // {CF03E624-DD29-426D-86A8-CB21E97E4C9B}
 static const EFI_GUID MyGuid = 
-{ 0xcf03e624, 0xdd29, 0x426d, { 0x86, 0xa8, 0xcb, 0x21, 0xe9, 0x7e, 0x4c, 0x9b } };
+	{ 0xcf03e624, 0xdd29, 0x426d, { 0x86, 0xa8, 0xcb, 0x21, 0xe9, 0x7e, 0x4c, 0x9b } };
 
 typedef enum {
 	///指出镜像文件类型
+	UNKNOWNTYPE,
+	RAW,
 	ISOFILE,
 	HARDDISKFILE,
-	FLOPPYFILE
+	FLOPPYFILE,
+	MBR,
+	GPT
 	}IMAGE_FILE_TYPE;
 
 
@@ -55,6 +60,7 @@ typedef struct {
 	CHAR16								*ImageFileName;  
 	UINTN								WaitTimeSec;
 	BOOLEAN								UseBuildInNtfsDriver;
+	UINT32								AltDiskSign;
 	}DIDO_OPTION_STATUS;
 
 
@@ -69,19 +75,21 @@ typedef struct {
 	BOOLEAN						  	InRam;						//相同
 	UINTN                          	StartAddr;					//不同
 	UINT64	                        Size;						//不同
+	UINT32							BlockSize;
 	UINT32							UniqueMbrSignature;        	//硬盘分区表前面的签名
-	//以下三条由blockinit填充，其余由install填充
+	UINT32							AltDiskSign;
+	IMAGE_FILE_TYPE					ImageType;
+
+
+	
 	EFI_BLOCK_IO_PROTOCOL           BlockIo;
 	EFI_BLOCK_IO2_PROTOCOL          BlockIo2;
 	EFI_BLOCK_IO_MEDIA              Media;
-	
+	}DIDO_DISK_PRIVATE_DATA;
 
-
-} DIDO_DISK_PRIVATE_DATA;
-
-extern EFI_BLOCK_IO_PROTOCOL  mFileDiskBlockIoTemplate;
-extern EFI_BLOCK_IO2_PROTOCOL  mFileDiskBlockIo2Template;
-extern DIDO_DISK_PRIVATE_DATA *pridata;
+extern EFI_BLOCK_IO_PROTOCOL  		mFileDiskBlockIoTemplate;
+extern EFI_BLOCK_IO2_PROTOCOL 		mFileDiskBlockIo2Template;
+extern DIDO_DISK_PRIVATE_DATA 		*pridata;
 
 
 
@@ -181,11 +189,10 @@ EFI_FILE_HANDLE
 
 ///载入句柄指定的设备(由光盘上的bootimage虚拟)中的/efi/boot/bootx64.efi，并返回启动文件的句柄
 ///如果BootImageDiskHandle为NULL，则会搜索虚拟盘
-EFI_STATUS
-LoadBootFileInVirtualDisk(
-	IN		EFI_HANDLE							*BootImageDiskHandle, 
-	OUT		EFI_FILE_HANDLE						*BootMyFileHandle
-	);
+EFI_HANDLE
+	LoadBootFileInVirtualDisk(
+		IN		EFI_HANDLE							*BootImageDiskHandle 
+		);
 ///等待指定时间秒
 EFI_STATUS
 	DidoWaitSec(
@@ -205,24 +212,11 @@ EFI_STATUS
 		EFI_FILE_HANDLE							CurrDirHandle,
 		IN 				 CHAR16					*ConfigFileName			//配置文件名
 		);
-///找出光盘分区信息，返回到后4个参数中
+
+///安装启动分区的块协议
 EFI_STATUS
-	FindPartitionInIsoFile(
-		IN		EFI_FILE_HANDLE			FileDiskFileHandle,
-		OUT		UINTN					*NoBootStartAddr,
-		OUT		UINT64					*NoBootSize,
-		OUT		UINTN					*BootStartAddr,
-		OUT		UINT64					*BootSize
-		);
-///找出硬盘分区信息，返回到后4个参数中
-EFI_STATUS
-	FindPartitionInHdFile(
-		IN		EFI_FILE_HANDLE			FileDiskFileHandle,
-		OUT		UINTN					*NoBootStartAddr,
-		OUT		UINT64					*NoBootSize,
-		OUT		UINTN					*BootStartAddr,
-		OUT		UINT64					*BootSize,
-		OUT		UINT32					*UniqueMbrSignature	
+	PartitionInstall(
+
 		);
 ///打开OptionStatus指定的文件，返回句柄	
 EFI_FILE_HANDLE
@@ -231,10 +225,9 @@ EFI_FILE_HANDLE
 		EFI_FILE_HANDLE						CurrDirHandle
 	);
 
-///检查启动分区是否成功安装
-
+///查找启动文件
 EFI_HANDLE
-	FindBootPartitionHandle();
+	FindAndLoadBootFileInVirtualDisk();
 
 ///处理命令行，将结果送入OptionStatus
 EFI_STATUS
@@ -243,16 +236,10 @@ EFI_STATUS
 	);
 ///安装虚拟硬盘
 EFI_STATUS
-	HdFileDiskInstall(
-		IN 	EFI_FILE_HANDLE 	FileDiskFileHandle,
-		IN	BOOLEAN				DiskInRam
+	FileDiskInstall(
+		IN 	EFI_FILE_HANDLE 	FileDiskFileHandle
 	);
-///安装虚拟光盘
-EFI_STATUS
-	IsoFileDiskInstall(
-		IN 	EFI_FILE_HANDLE 	FileDiskFileHandle,
-		IN	BOOLEAN				DiskInRam
-	);
+
 ///加载ntfs驱动
 EFI_STATUS
 	LoadNtfsDriver(

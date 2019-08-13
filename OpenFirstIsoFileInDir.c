@@ -47,6 +47,6 @@ EFI_FILE_HANDLE
 			}
 		//如果找到iso文件则释放临时内存
 		if(NULL!=DidoFileInfoBuffer)gBS->FreePool(DidoFileInfoBuffer);
-		Print(L"Can not find iso file.Error=[%r]\n",Status);
+		Print(L"Can not find iso file in current directory\n");
 		return NULL;		
 	}

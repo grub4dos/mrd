@@ -102,7 +102,7 @@ FileDiskBlkIoReadBlocks (
 {
   DIDO_DISK_PRIVATE_DATA           *PrivateData;
   UINTN                           NumberOfBlocks;
-
+//	EFI_TPL							OldTPL;
   if (Buffer == NULL) {
     return EFI_INVALID_PARAMETER;
   }
@@ -129,18 +129,25 @@ FileDiskBlkIoReadBlocks (
   if ((Lba + NumberOfBlocks - 1) > PrivateData->Media.LastBlock) {
     return EFI_INVALID_PARAMETER;
   }
+//  OldTPL=gBS->RaiseTPL (TPL_NOTIFY);
   if(PrivateData->InRam){
 	CopyMem (
 		Buffer,
 		(VOID *)(UINTN)(PrivateData->StartAddr + MultU64x32 (Lba, PrivateData->Media.BlockSize)),
 		BufferSize
 		);
-	}else{	
-		FileHandleSetPosition(PrivateData->VirDiskFileHandle, PrivateData->StartAddr+MultU64x32 (Lba, PrivateData->Media.BlockSize));
-		FileHandleRead  ( PrivateData->VirDiskFileHandle,  &BufferSize,  Buffer); 
-		}
-		   
+	}else{
 
+
+		FileHandleSetPosition(PrivateData->VirDiskFileHandle,PrivateData->StartAddr + MultU64x32 (Lba, PrivateData->Media.BlockSize));
+		FileHandleRead  ( PrivateData->VirDiskFileHandle,  &BufferSize,  Buffer); 
+
+		}
+	//¸Ä±ä´ÅÅÌÇ©Ãû	
+	if(Lba==0&&PrivateData->AltDiskSign!=0){
+		*(UINT32*)(((MASTER_BOOT_RECORD*)Buffer)->UniqueMbrSignature)=PrivateData->AltDiskSign;
+		}	
+//  gBS->RestoreTPL(OldTPL);
   return EFI_SUCCESS;
 }
 
@@ -221,11 +228,16 @@ FileDiskBlkIoWriteBlocks (
 		BufferSize
 		);
 	}else{	
+		VOID 	*TempBuffer;
+		TempBuffer=AllocateZeroPool(BufferSize);
+		if(TempBuffer==NULL)
+			return EFI_DEVICE_ERROR;	
+		CopyMem(TempBuffer,Buffer,BufferSize);
 		FileHandleSetPosition(PrivateData->VirDiskFileHandle, PrivateData->StartAddr+MultU64x32 (Lba, PrivateData->Media.BlockSize));
-		FileHandleWrite( PrivateData->VirDiskFileHandle,  &BufferSize,  Buffer); 
+		FileHandleWrite  ( PrivateData->VirDiskFileHandle,  &BufferSize,  TempBuffer); 
+		FileHandleFlush	(PrivateData->VirDiskFileHandle);
+		FreePool(TempBuffer);
 		}
-	  
-
 
   return EFI_SUCCESS;
 }

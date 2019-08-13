@@ -34,7 +34,8 @@ EFI_FILE_HANDLE
 				}
 			//测试第二节点	
 			NextNodeDP=NextDevicePathNode(CurrDevicePath);	
-			if(MEDIA_DEVICE_PATH!=NextNodeDP->Type||MEDIA_FILEPATH_DP!=NextNodeDP->SubType||
+			if(MEDIA_DEVICE_PATH!=NextNodeDP->Type||
+				MEDIA_FILEPATH_DP!=NextNodeDP->SubType||
 				0==StrLen(((FILEPATH_DEVICE_PATH*)NextNodeDP)->PathName)){
 				Print(L"Node2 not open\n");	
 				return 	DidoDirHandle;

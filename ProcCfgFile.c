@@ -11,7 +11,7 @@ EFI_STATUS
 			EFI_STATUS							Status;
 			EFI_FILE_HANDLE						CfgFileHandle;
 			CHAR8								*ConfigFileLine;
-			UINTN 								ConfigFileSize;
+			UINT64 								ConfigFileSize;
 			//打开配置文件
 			Print(L"Process config file\n");
 			Status=CurrDirHandle->Open(CurrDirHandle,&CfgFileHandle,ConfigFileName,EFI_FILE_MODE_READ,EFI_FILE_DIRECTORY);
@@ -21,14 +21,14 @@ EFI_STATUS
 				}
 			//读配置文件	
 			FileHandleGetSize(CfgFileHandle	,&ConfigFileSize);
-			ConfigFileLine=AllocateZeroPool(ConfigFileSize+1);
-			FileHandleRead(CfgFileHandle,&ConfigFileSize,ConfigFileLine);
+			ConfigFileLine=AllocateZeroPool((UINTN)ConfigFileSize+1);
+			FileHandleRead(CfgFileHandle,(UINTN*)&ConfigFileSize,ConfigFileLine);
 			
 			//要处理ASCII到UNICODE的转换
 
-			OptionStatus->OptionStringSizeInByte=ConfigFileSize*2;
+			OptionStatus->OptionStringSizeInByte=(UINTN)ConfigFileSize*2;
 			OptionStatus->OptionString=AllocateZeroPool(OptionStatus->OptionStringSizeInByte+2);
-			AsciiStrToUnicodeStrS(ConfigFileLine,OptionStatus->OptionString,ConfigFileSize+1);
+			AsciiStrToUnicodeStrS(ConfigFileLine,OptionStatus->OptionString,(UINTN)ConfigFileSize+1);
 			//将字符串分解到各成员
 			DispatchOptions(OptionStatus);
 			FreePool(OptionStatus->OptionString);

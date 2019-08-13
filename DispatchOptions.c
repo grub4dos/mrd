@@ -66,7 +66,6 @@ EFI_STATUS
 			if(	StringLenth>=6&&
 				(0==StrCmp(Argv[i],L"-debug")||0==StrCmp(Argv[i],L"-DEBUG"))){
 				OptionStatus->DebugDropToShell=TRUE;
-				Print(L"Debug drop to shell\n");
 				continue;
 				}
 			//命令行-wait参数		
@@ -77,9 +76,22 @@ EFI_STATUS
 				TempStr[0]=L' ';
 				StrCatS(TempStr, StrSize(Argv[i+1])+2,Argv[i+1]);	
 				OptionStatus->WaitTimeSec=StrDecimalToUintn(TempStr);
-				FreePool(TempStr);
+				if(TempStr!=NULL)FreePool(TempStr);
 				continue;
 				}	
+				
+			//命令行-altsign参数		
+			if(	StringLenth>=8&&i<Argc-1&&
+				(0==StrCmp(Argv[i],L"-altsign")||0==StrCmp(Argv[i],L"-altsign"))){
+				CHAR16					*TempStr;
+				TempStr=AllocateZeroPool(StrSize(Argv[i+1])+2);
+				TempStr[0]=L' ';
+				StrCatS(TempStr, StrSize(Argv[i+1])+2,Argv[i+1]);	
+				OptionStatus->AltDiskSign=(UINT32)StrDecimalToUintn(TempStr);
+				if(TempStr!=NULL)FreePool(TempStr);
+				continue;
+				}					
+				
 			//命令行-file参数		
 			if(	StringLenth>=5&&i<Argc-1&&
 				(0==StrCmp(Argv[i],L"-file")||0==StrCmp(Argv[i],L"-FILE"))){
@@ -99,7 +111,8 @@ EFI_STATUS
 					}
 				if(0==StrCmp(TempStr,L"fd")||0==StrCmp(TempStr,L"FD")){
 					OptionStatus->ImageFileType=FLOPPYFILE;
-					}					
+					}	
+						
 				continue;
 				}
 			//命令行-dev参数
@@ -109,13 +122,18 @@ EFI_STATUS
 				continue;
 				}
 			//命令行-ntfs参数
-			if(	StringLenth>=5&&i<Argc-1&&
+			if(	StringLenth>=5&&
 				(0==StrCmp(Argv[i],L"-ntfs")||0==StrCmp(Argv[i],L"-NTFS"))){
 				OptionStatus->UseBuildInNtfsDriver=TRUE;
 				continue;
 				}				
-			FreePool(Argv[i]);		
+								
 			}
-		FreePool(Argv);	
+/*		
+		for(i=0;i<Argc;i++){
+			FreePool(argv[i]);
+			}
+		FreePool(argv);	
+*/
 		return Status;	
 	}
