@@ -8,7 +8,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 		)
 		{
 			EFI_STATUS						Status;
-			EFI_DEVICE_PATH_PROTOCOL		*ThisFileDP;
+//			EFI_DEVICE_PATH_PROTOCOL		*ThisFileDP;
 			EFI_DEVICE_PATH_PROTOCOL		*TempDP=NULL;
 			EFI_DEVICE_PATH_PROTOCOL		*TempDPToFree=NULL;
 			EFI_DEVICE_PATH_PROTOCOL		*TempDPDirPathNode=NULL;
@@ -17,14 +17,31 @@ EFI_DEVICE_PATH_PROTOCOL*
 			INTN							StrIndex;
 			CHAR16							*NodeFileName;
 			CHAR16							*NodeDirName;	
+			EFI_LOADED_IMAGE_PROTOCOL		*ThisFileLIP;
+			//打开自己的映像DP信息
+			Status=gBS->HandleProtocol(gImageHandle,&gEfiLoadedImageProtocolGuid,(VOID**)&ThisFileLIP);
+			if(EFI_ERROR (Status)){
+				Print(L"LoadedImageProtocol not found.Error=[%r]\n",Status);
+				return NULL;
+				}
+			Status=gBS->HandleProtocol(ThisFileLIP->DeviceHandle,&gEfiDevicePathProtocolGuid,(VOID**)&TempDP);
+			if(EFI_ERROR (Status)){
+				Print(L"DevicePathProtocol not found.Error=[%r]\n",Status);
+				return NULL;
+				}
+			TempDP=AppendDevicePath(TempDP,ThisFileLIP->FilePath);
+
+/*			此段要求spec2.1c
 			//打开自己的映像DP信息
 			Status=gBS->HandleProtocol(FileHandle,&gEfiLoadedImageDevicePathProtocolGuid,(VOID**)&ThisFileDP);
 			if(EFI_ERROR (Status)){
 				Print(L"LoadedImageDevicePathProtocol not found.Error=[%r]\n",Status);
 				return NULL;
 				}
+				
 			//复制一个dp	
 			TempDP=DuplicateDevicePath(ThisFileDP);
+*/
 			TempDPFilePathNode=TempDP;
 			TempDPDirPathNode=TempDPFilePathNode;
 			//只有一个endpath退出

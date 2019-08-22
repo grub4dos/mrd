@@ -26,8 +26,10 @@ IMAGE_FILE_TYPE
 				}
 			//判断分区类型，如果是mbr则处理后返回
 			if(MasterBootRecord->Partition[0].OSIndicator!=PMBR_GPT_PARTITION){
+				FreePool(MasterBootRecord);
 				return MBR;	
 				}else{
+					FreePool(MasterBootRecord);
 					return GPT;
 					}
 		}
@@ -95,7 +97,7 @@ EFI_STATUS
 		TempPath1=CreateDeviceNode  ( HARDWARE_DEVICE_PATH ,HW_VENDOR_DP ,  sizeof(VENDOR_DEVICE_PATH));
 		((VENDOR_DEVICE_PATH*)TempPath1)->Guid=MyGuid;
 		VirDevicePath=AppendDevicePathNode(NULL,TempPath1);
-		FreePool(TempPath1);
+		if(TempPath1!=NULL)FreePool(TempPath1);
 
 		///初始磁盘的私有数据
 		pridata[0].Present=TRUE;

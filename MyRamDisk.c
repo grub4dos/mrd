@@ -3,7 +3,7 @@
 
 **/
 #include "MyRamDisk.h"
-
+#include "ver.h"
 ///全局私有数据指针,由驱动部分访问
 DIDO_DISK_PRIVATE_DATA 			*pridata;
 
@@ -21,9 +21,10 @@ EFI_STATUS EFIAPI UefiMain(
 		EFI_DEVICE_PATH_PROTOCOL		*CurrDirDP;
 		EFI_FILE_HANDLE					IsoFileHandle;
 		EFI_FILE_HANDLE					CurrDirHandle;
-		
+
 		///显示版本号
-		Print(L"imgboot version 47\n");
+		Print(L"Version: %s   Build time: %s\n",ImgbootRevision,ImgbootBuildTime);
+		
 		///初始化命令行参数状态
 		OptionStatus=AllocateZeroPool(sizeof(DIDO_OPTION_STATUS));
 		OptionStatus->LoadInMemory=FALSE;

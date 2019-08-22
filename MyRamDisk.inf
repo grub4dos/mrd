@@ -59,7 +59,7 @@
   gEfiDevicePathToTextProtocolGuid
 #  gEfiLoadFileProtocolGuid
   gEfiLoadedImageProtocolGuid
-  gEfiLoadedImageDevicePathProtocolGuid
+#  gEfiLoadedImageDevicePathProtocolGuid
   gEfiBlockIoProtocolGuid
   gEfiBlockIo2ProtocolGuid
   gEfiDiskIoProtocolGuid

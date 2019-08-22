@@ -30,8 +30,10 @@ BOOLEAN
 					break;
 					}
 				}
-			if(BootPartitionNumber==0)
-				return FALSE;	
+			if(BootPartitionNumber==0){
+				FreePool(MasterBootRecord);
+				return FALSE;
+				}				
 			UniqueMbrSignature=*(UINT32*)(MasterBootRecord->UniqueMbrSignature);
 
 			//使用指定磁盘签名
@@ -39,7 +41,6 @@ BOOLEAN
 				UniqueMbrSignature=pridata[0].AltDiskSign;
 				}
 				
-			FreePool(MasterBootRecord);
 			
 			pridata[2].StartAddr = pridata[2].StartAddr + pridata[0].StartAddr;		
 
@@ -52,8 +53,8 @@ BOOLEAN
 			((HARDDRIVE_DEVICE_PATH*)TempPath1)->MBRType			=1;
 			((HARDDRIVE_DEVICE_PATH*)TempPath1)->SignatureType		=1;
 			pridata[2].VirDiskDevicePath=AppendDevicePathNode(pridata[0].VirDiskDevicePath,TempPath1);
-			FreePool(TempPath1);				
-			
+			FreePool(TempPath1);
+			FreePool(MasterBootRecord);			
 			return 	TRUE;				
 		}
 		
@@ -74,6 +75,9 @@ BOOLEAN
 			UINT32							i;
 			//读GPT头
 			GptHeader=AllocateZeroPool(GptHeaderSize);
+			if(GptHeader==NULL){
+				return FALSE;
+				}
 			FileHandleSetPosition(pridata[0].VirDiskFileHandle,PRIMARY_PART_HEADER_LBA*FLOPPY_DISK_BLOCK_SIZE);
 			FileHandleRead(pridata[0].VirDiskFileHandle,&GptHeaderSize,GptHeader);
 			if(GptHeader->Header.Signature!=EFI_PTAB_HEADER_ID){
@@ -85,7 +89,9 @@ BOOLEAN
 			GptPartitionEntryPos = GptHeader->PartitionEntryLBA * FLOPPY_DISK_BLOCK_SIZE;
 			GptPartitionEntrySize = GptHeader->SizeOfPartitionEntry;	
 			GptPartitionEntry = AllocateZeroPool(GptHeader->SizeOfPartitionEntry * GptHeader->NumberOfPartitionEntries);
-			
+			if(GptPartitionEntry==NULL){
+				return FALSE;
+				}
 			for(i=0;i<GptHeader->NumberOfPartitionEntries;i++){
 				FileHandleSetPosition(pridata[0].VirDiskFileHandle,GptPartitionEntryPos+i*GptPartitionEntrySize);
 				FileHandleRead(pridata[0].VirDiskFileHandle,&GptPartitionEntrySize,GptPartitionEntry);
@@ -97,6 +103,11 @@ BOOLEAN
 					break;
 					}
 				}
+			if(BootPartitionNumber==0){
+				FreePool(GptPartitionEntry);
+				FreePool(GptHeader);
+				return FALSE;
+				}				
 			pridata[2].StartAddr = (UINTN)BootPartitionStartAddr + pridata[0].StartAddr;
 			pridata[2].Size = BootPartitionSize	;
 
@@ -110,7 +121,8 @@ BOOLEAN
 			((HARDDRIVE_DEVICE_PATH*)TempPath1)->SignatureType		=2;
 			pridata[2].VirDiskDevicePath=AppendDevicePathNode(pridata[0].VirDiskDevicePath,TempPath1);
 			FreePool(TempPath1);
-			
+			FreePool(GptPartitionEntry);
+			FreePool(GptHeader);			
 			return TRUE;	
 		}
 		
@@ -123,6 +135,7 @@ BOOLEAN
 			UINTN						DescriptorSize=CD_BLOCK_SIZE;	
 			UINTN						DbrImageSize=2;
 			UINT16						DbrImageSizeBuffer;
+			BOOLEAN						FoundBootEntry=FALSE;
 			UINTN						i;
 			EFI_DEVICE_PATH_PROTOCOL	*TempPath1;
 //			EFI_DEVICE_PATH_PROTOCOL	*TempPath2;			
@@ -151,7 +164,7 @@ BOOLEAN
 				if( TempCatalog[i].Section.Indicator==ELTORITO_ID_SECTION_HEADER_FINAL&&
 					TempCatalog[i].Section.PlatformId==IS_EFI_SYSTEM_PARTITION&&
 					TempCatalog[i+1].Boot.Indicator==ELTORITO_ID_SECTION_BOOTABLE ){
-						
+					FoundBootEntry=TRUE;	
 					pridata[2].StartAddr	=TempCatalog[i+1].Boot.Lba*CD_BLOCK_SIZE;
 					pridata[2].Size		=TempCatalog[i+1].Boot.SectorCount*FLOPPY_DISK_BLOCK_SIZE;
 					
@@ -165,14 +178,14 @@ BOOLEAN
 					if(pridata[2].Size<BLOCK_OF_1_44MB*FLOPPY_DISK_BLOCK_SIZE){
 						pridata[2].Size=BLOCK_OF_1_44MB*FLOPPY_DISK_BLOCK_SIZE;
 						}
-					FreePool(VolDescriptor);	
-					
+					break;	
 					}
-				
-				}				
-			FreePool(VolDescriptor);
+				}
+			if(FoundBootEntry==FALSE){
+				FreePool(VolDescriptor);
+				return FALSE;
+				}
 			pridata[2].StartAddr = pridata[2].StartAddr + pridata[0].StartAddr;
-		
 								
 			//efi启动映像，一般是一个包含/efi/boot/bootx64.efi的软盘
 			TempPath1=CreateDeviceNode  ( MEDIA_DEVICE_PATH ,MEDIA_CDROM_DP ,  sizeof(CDROM_DEVICE_PATH));		
@@ -181,9 +194,7 @@ BOOLEAN
 			((CDROM_DEVICE_PATH*)TempPath1)->PartitionSize=pridata[2].Size/CD_BLOCK_SIZE;
 			pridata[2].VirDiskDevicePath=AppendDevicePathNode(pridata[0].VirDiskDevicePath,TempPath1);
 			FreePool(TempPath1);
-//			pridata[2].VirDiskDevicePath=AppendDevicePath(pridata[0].VirDiskDevicePath,TempPath2);
-//			FreePool(TempPath2);
-			
+			FreePool(VolDescriptor);
 			return 	TRUE;	
 		}
 		
